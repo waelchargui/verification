@@ -1,0 +1,256 @@
+-- FDR compression functions
+transparent diamond
+transparent normalise
+
+
+-- Wright defined processes
+channel abstractEvent
+DFA = abstractEvent -> DFA |~| SKIP
+
+quant_semi({},_) = SKIP
+quant_semi(S,PARAM) = |~| i:S @ PARAM(i) ; quant_semi(diff(S,{i}),PARAM)
+
+power_set({}) = {{}}
+power_set(S) = { union(y,{x}) | x <- S, y <- power_set(diff(S,{x}))}
+
+
+
+-- Configuration StockQuoter
+  -- Types declarations
+  -- events for abstract specification
+  channel updateInfo, getInfo
+  
+  
+  -- Component StockBroker
+    
+    ALPHA_StockBroker = {|PDistributor.getInfo|}
+    ComputationStockBroker = (PDistributor.getInfo -> ComputationStockBroker
+          )
+      
+    --Port Process
+    ALPHA_PDistributor = {getInfo}
+    -- no events observed!
+    PORTPDistributor = (getInfo -> PORTPDistributor)
+    PDistributorG = PORTPDistributor[[ x <-PDistributor.x | x <- ALPHA_PDistributor ]]
+    
+    channel PDistributor: {getInfo}
+    --Deterministic Process restricted to the observed event
+    PORTPDistributorDETR = SKIP
+    
+    
+    COMPPDistributor = (ComputationStockBroker)\ diff(ALPHA_StockBroker
+        , {|PDistributor|})
+    assert PDistributorG [FD= COMPPDistributor
+    
+    
+  
+  -- Component StockDistributor
+    
+    ALPHA_StockDistributor = {|PBroker2.getInfo, PBase.updateInfo, PBroker1.getInfo
+        |}
+    ComputationStockDistributor = ((PBroker1.getInfo -> (PBase.updateInfo
+           -> ComputationStockDistributor)) [] (PBroker2.getInfo -> (PBase.updateInfo
+           -> ComputationStockDistributor)))
+      
+    --Port Process
+    ALPHA_PBase = {updateInfo}
+    -- no events observed!
+    PORTPBase = (updateInfo -> PORTPBase)
+    PBaseG = PORTPBase[[ x <-PBase.x | x <- ALPHA_PBase ]]
+    
+    ALPHA_PBroker1 = {getInfo}
+    ALPHA_PBroker1I = {}
+    PORTPBroker1 = (getInfo -> PORTPBroker1)
+    PBroker1G = PORTPBroker1[[ x <-PBroker1.x | x <- ALPHA_PBroker1 ]]
+    
+    ALPHA_PBroker2 = {getInfo}
+    ALPHA_PBroker2I = {}
+    PORTPBroker2 = (getInfo -> PORTPBroker2)
+    PBroker2G = PORTPBroker2[[ x <-PBroker2.x | x <- ALPHA_PBroker2 ]]
+    
+    channel PBase: {updateInfo}
+    channel PBroker1: {getInfo}
+    channel PBroker2: {getInfo}
+    --Deterministic Process restricted to the observed event
+    PORTPBaseDETR = SKIP
+    PORTPBroker1DETR = (getInfo -> PORTPBroker1DETR)
+    PORTPBroker2DETR = (getInfo -> PORTPBroker2DETR)
+    
+    
+    COMPPBase = (( PORTPBroker1DETR [[ x <- PBroker1.x | x <- {getInfo } ]]
+        [| diff({PBroker1.getInfo}, {}) |]
+        ( PORTPBroker2DETR [[ x <- PBroker2.x | x <- {getInfo } ]]
+        [| diff({PBroker2.getInfo}, {}) |]
+        ComputationStockDistributor)))\ diff(ALPHA_StockDistributor, {|PBase
+        |})
+    assert PBaseG [FD= COMPPBase
+    
+    COMPPBroker1 = (( PORTPBaseDETR 
+        [| diff({}, {}) |]
+        ( PORTPBroker2DETR [[ x <- PBroker2.x | x <- {getInfo } ]]
+        [| diff({PBroker2.getInfo}, {}) |]
+        ComputationStockDistributor)))\ diff(ALPHA_StockDistributor, {|PBroker1
+        |})
+    assert PBroker1G [FD= COMPPBroker1
+    
+    COMPPBroker2 = (( PORTPBaseDETR 
+        [| diff({}, {}) |]
+        ( PORTPBroker1DETR [[ x <- PBroker1.x | x <- {getInfo } ]]
+        [| diff({PBroker1.getInfo}, {}) |]
+        ComputationStockDistributor)))\ diff(ALPHA_StockDistributor, {|PBroker2
+        |})
+    assert PBroker2G [FD= COMPPBroker2
+    
+    
+  
+  -- Component DataBase
+    
+    ALPHA_DataBase = {|PSDistributor.updateInfo|}
+    ComputationDataBase = (PSDistributor.updateInfo -> ComputationDataBase
+          )
+      
+    --Port Process
+    ALPHA_PSDistributor = {updateInfo}
+    ALPHA_PSDistributorI = {}
+    PORTPSDistributor = (updateInfo -> PORTPSDistributor)
+    PSDistributorG = PORTPSDistributor[[ x <-PSDistributor.x | x <- ALPHA_PSDistributor ]]
+    
+    channel PSDistributor: {updateInfo}
+    --Deterministic Process restricted to the observed event
+    PORTPSDistributorDETR = (updateInfo -> PORTPSDistributorDETR)
+    
+    
+    COMPPSDistributor = (ComputationDataBase)\ diff(ALPHA_DataBase, {|PSDistributor
+        |})
+    assert PSDistributorG [FD= COMPPSDistributor
+    
+    
+  
+  -- Connector BrokerDistributor
+    -- generated definitions (to split long sets)
+    
+    ALPHA_BrokerDistributor = {|RDistributor.getInfo, RBroker.getInfo|}
+    GlueBrokerDistributor = (RDistributor.getInfo -> (RBroker.getInfo -> 
+          GlueBrokerDistributor))
+      
+    
+    ALPHA_RBroker = {getInfo}
+    ROLERBroker = (getInfo -> ROLERBroker)
+    RBrokerA = ROLERBroker [[ x <- abstractEvent | x <- ALPHA_RBroker ]]
+    assert DFA [FD= RBrokerA
+    
+    ALPHA_RDistributor = {getInfo}
+    ROLERDistributor = (getInfo -> ROLERDistributor)
+    RDistributorA = ROLERDistributor [[ x <- abstractEvent | x <- ALPHA_RDistributor ]]
+    assert DFA [FD= RDistributorA
+    
+    ROLERBrokerDET = (getInfo -> ROLERBrokerDET)
+    ROLERDistributorDET = (getInfo -> ROLERDistributorDET)
+    
+    channel RBroker: {getInfo}
+    channel RDistributor: {getInfo}
+    BrokerDistributor = (( ROLERBroker[[ x <- RBroker.x | x <- {getInfo
+         } ]]
+        [| diff({|RBroker|}, {}) |]
+        ( ROLERDistributor[[ x <- RDistributor.x | x <- {getInfo } ]]
+        [| diff({|RDistributor|}, {}) |]
+        GlueBrokerDistributor)))
+    BrokerDistributorA = BrokerDistributor [[ x <- abstractEvent | x <- ALPHA_BrokerDistributor
+         ]]
+    assert DFA [FD= BrokerDistributorA
+  
+  
+  -- Connector BaseDistributor
+    -- generated definitions (to split long sets)
+    
+    ALPHA_BaseDistributor = {|RBase.updateInfo, RSDistributor.updateInfo
+        |}
+    GlueBaseDistributor = (RBase.updateInfo -> (RSDistributor.updateInfo
+           -> GlueBaseDistributor))
+      
+    
+    ALPHA_RSDistributor = {updateInfo}
+    ROLERSDistributor = (updateInfo -> ROLERSDistributor)
+    RSDistributorA = ROLERSDistributor [[ x <- abstractEvent | x <- ALPHA_RSDistributor ]]
+    assert DFA [FD= RSDistributorA
+    
+    ALPHA_RBase = {updateInfo}
+    ROLERBase = (updateInfo -> ROLERBase)
+    RBaseA = ROLERBase [[ x <- abstractEvent | x <- ALPHA_RBase ]]
+    assert DFA [FD= RBaseA
+    
+    ROLERSDistributorDET = (updateInfo -> ROLERSDistributorDET)
+    ROLERBaseDET = (updateInfo -> ROLERBaseDET)
+    
+    channel RSDistributor: {updateInfo}
+    channel RBase: {updateInfo}
+    BaseDistributor = (( ROLERSDistributor[[ x <- RSDistributor.x | x <- {updateInfo
+         } ]]
+        [| diff({|RSDistributor|}, {}) |]
+        ( ROLERBase[[ x <- RBase.x | x <- {updateInfo } ]]
+        [| diff({|RBase|}, {}) |]
+        GlueBaseDistributor)))
+    BaseDistributorA = BaseDistributor [[ x <- abstractEvent | x <- ALPHA_BaseDistributor
+         ]]
+    assert DFA [FD= BaseDistributorA
+  
+  
+  --Attachment Test
+    
+    SB1_PDistributorPLUS = PORTPDistributor
+        [| diff( ALPHA_RDistributor , ALPHA_PDistributor ) |] STOP
+    Wire1_RDistributorPLUS = ROLERDistributor
+        [| diff( ALPHA_PDistributor , ALPHA_RDistributor )|] STOP
+    SB1_PDistributorPLUSDET = SB1_PDistributorPLUS
+        [| union(ALPHA_PDistributor , ALPHA_RDistributor ) |]
+        ROLERDistributorDET
+    assert Wire1_RDistributorPLUS  [FD= SB1_PDistributorPLUSDET 
+    
+    SD_PBroker1PLUS = PORTPBroker1
+        [| diff( ALPHA_RBroker , ALPHA_PBroker1 ) |] STOP
+    Wire1_RBrokerPLUS = ROLERBroker
+        [| diff( ALPHA_PBroker1 , ALPHA_RBroker )|] STOP
+    SD_PBroker1PLUSDET = SD_PBroker1PLUS
+        [| union(ALPHA_PBroker1 , ALPHA_RBroker ) |]
+        ROLERBrokerDET
+    assert Wire1_RBrokerPLUS  [FD= SD_PBroker1PLUSDET 
+    
+    SB2_PDistributorPLUS = PORTPDistributor
+        [| diff( ALPHA_RDistributor , ALPHA_PDistributor ) |] STOP
+    Wire2_RDistributorPLUS = ROLERDistributor
+        [| diff( ALPHA_PDistributor , ALPHA_RDistributor )|] STOP
+    SB2_PDistributorPLUSDET = SB2_PDistributorPLUS
+        [| union(ALPHA_PDistributor , ALPHA_RDistributor ) |]
+        ROLERDistributorDET
+    assert Wire2_RDistributorPLUS  [FD= SB2_PDistributorPLUSDET 
+    
+    SD_PBroker2PLUS = PORTPBroker2
+        [| diff( ALPHA_RBroker , ALPHA_PBroker2 ) |] STOP
+    Wire2_RBrokerPLUS = ROLERBroker
+        [| diff( ALPHA_PBroker2 , ALPHA_RBroker )|] STOP
+    SD_PBroker2PLUSDET = SD_PBroker2PLUS
+        [| union(ALPHA_PBroker2 , ALPHA_RBroker ) |]
+        ROLERBrokerDET
+    assert Wire2_RBrokerPLUS  [FD= SD_PBroker2PLUSDET 
+    
+    SD_PBasePLUS = PORTPBase
+        [| diff( ALPHA_RBase , ALPHA_PBase ) |] STOP
+    Wire3_RBasePLUS = ROLERBase
+        [| diff( ALPHA_PBase , ALPHA_RBase )|] STOP
+    SD_PBasePLUSDET = SD_PBasePLUS
+        [| union(ALPHA_PBase , ALPHA_RBase ) |]
+        ROLERBaseDET
+    assert Wire3_RBasePLUS  [FD= SD_PBasePLUSDET 
+    
+    DB_PSDistributorPLUS = PORTPSDistributor
+        [| diff( ALPHA_RSDistributor , ALPHA_PSDistributor ) |] STOP
+    Wire3_RSDistributorPLUS = ROLERSDistributor
+        [| diff( ALPHA_PSDistributor , ALPHA_RSDistributor )|] STOP
+    DB_PSDistributorPLUSDET = DB_PSDistributorPLUS
+        [| union(ALPHA_PSDistributor , ALPHA_RSDistributor ) |]
+        ROLERSDistributorDET
+    assert Wire3_RSDistributorPLUS  [FD= DB_PSDistributorPLUSDET 
+    
+    
+  -- End Configuration
+  
