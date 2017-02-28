@@ -1,0 +1,54 @@
+Configuration StockQuoter
+
+Component StockBroker
+Port PDistributor = _getInfo -> PDistributor
+Computation = _PDistributor.getInfo -> 
+Computation
+
+Component StockDistributor
+Port PBase = _updateInfo -> PBase
+Port PBroker1 = getInfo -> PBroker1
+Port PBroker2 = getInfo -> PBroker2
+Computation = PBroker1.getInfo -> 
+_PBase.updateInfo -> Computation []
+PBroker2.getInfo -> _PBase.updateInfo -> 
+Computation
+
+Component DataBase
+Port PSDistributor = updateInfo ->
+PSDistributor
+Computation = PSDistributor.updateInfo ->
+Computation
+
+Connector BrokerDistributor
+Role RBroker = getInfo -> RBroker
+Role RDistributor = _getInfo -> RDistributor
+Glue = RDistributor.getInfo -> 
+_RBroker.getInfo -> Glue
+
+Connector BaseDistributor
+Role RSDistributor = updateInfo -> 
+RSDistributor
+Role RBase = _updateInfo -> RBase
+Glue = RBase.updateInfo ->
+_RSDistributor.updateInfo -> Glue
+
+Instances
+SB1 : StockBroker
+SB2 : StockBroker
+SD : StockDistributor
+DB : DataBase
+Wire1 : BrokerDistributor
+Wire2 : BrokerDistributor
+Wire3 : BaseDistributor
+
+Attachments
+SB1.PDistributor as Wire1.RDistributor 
+SD.PBroker1 as Wire1.RBroker
+SB2.PDistributor as Wire2.RDistributor 
+SD.PBroker2 as Wire2.RBroker
+SD. PBase as Wire3.RBase 
+DB.PSDistributor as Wire3.RSDistributor
+
+End Configuration
+
