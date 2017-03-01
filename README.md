@@ -1,1 +1,1 @@
-# SCA to Wright for Behavioral Verification 
+# Behavioral Verification of Service-Component Architecture 
